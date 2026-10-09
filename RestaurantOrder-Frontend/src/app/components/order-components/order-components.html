@@ -1,0 +1,230 @@
+<div class="container my-4">
+  <div class="row">
+    <div class="col-md-5 mb-4">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">{{ isEditMode() ? 'Edit Order' : 'Add New Order' }}</h5>
+        </div>
+        <div class="card-body">
+          <form [formGroup]="orderForm" (ngSubmit)="onSubmit()">
+            <div class="mb-3">
+              <label class="form-label">Customer Name</label>
+              <input type="text" formControlName="customerName" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Mobile No</label>
+              <input type="text" formControlName="mobileNo" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Order Date</label>
+              <input type="date" formControlName="orderDate" class="form-control" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Total Amount</label>
+              <input type="number" formControlName="totalAmount" class="form-control" min="0" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Restaurant Table</label>
+              <select formControlName="restaurantTableId" class="form-select">
+                <option [value]="0">Select Table</option>
+                @for (t of tables(); track t.restaurantTableId) {
+                  <option [value]="t.restaurantTableId">Table {{ t.tableNumber }}</option>
+                }
+              </select>
+            </div>
+
+            <div class="form-check mb-3">
+              <input
+                type="checkbox"
+                formControlName="isPaid"
+                id="isPaid"
+                class="form-check-input"
+              />
+              <label class="form-check-label">Is Paid</label>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label">Receipt Image</label>
+              <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+              @if (receiptPreview()) {
+                <div class="mt-2">
+                  <img
+                    [src]="receiptPreview()"
+                    style="max-width: 90px; height: 90px; object-fit: cover"
+                    class="img-thumbnail"
+                  />
+                </div>
+              }
+            </div>
+
+            <div class="mb-3 bg-dark-subtle p-2 rounded">
+              <div class="d-flex justify-content-between align-items-center">
+                <h6>Order Items</h6>
+                <button (click)="addOrderItem()" type="button" class="btn btn-success btn-sm">
+                  + Add Item
+                </button>
+              </div>
+
+              <div formArrayName="orderItems">
+                @for (item of orderItem.controls; track $index; let i = $index) {
+                  <div [formGroupName]="i" class="row align-items-center mb-2">
+                    <div class="col-md-7">
+                      <select formControlName="menuItemId" class="form-select-sm">
+                        <option [value]="0">Select MenuItem</option>
+                        @for (m of menuItems(); track m.menuItemId) {
+                          <option [value]="m.menuItemId">{{ m.itemName }}</option>
+                        }
+                      </select>
+                    </div>
+
+                    <div class="col-md-3">
+                      <input
+                        type="number"
+                        formControlName="quantity"
+                        class="form-control"
+                        min="1"
+                      />
+                    </div>
+
+                    <div class="col-md-2">
+                      <button
+                        type="button"
+                        class="btn btn-danger btn-sm"
+                        (click)="removeOrderItem(i)"
+                      >
+                        &times;
+                      </button>
+                    </div>
+                  </div>
+                }
+                @if (orderItem.length === 0) {
+                  <small class="text-muted">No items added yet.</small>
+                }
+              </div>
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary" [disabled]="isSaving()">
+                @if (isSaving()) {
+                  <span class="spinner-border spinner-border-sm me-1"></span>
+                }
+                {{ isEditMode() ? 'Update' : 'Save' }}
+              </button>
+
+              <button type="button" (click)="resetForm()" class="btn btn-secondary">Cancel</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-7 mb-4">
+      <div class="card">
+        <div class="card-header"><h4>Order List</h4></div>
+        <div class="card-body p-0">
+          @if (order().length === 0) {
+            <div class="">No Orders Yet</div>
+          } @else {
+            <table class="table table-bordered">
+              <thead>
+                <tr>
+                  <th>Receipt Image</th>
+                  <th>Customer Name</th>
+                  <th>Table Number</th>
+                  <th>Total Amount</th>
+                  <th>Status</th>
+                  <th>Orderd Items</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (ordr of order(); track ordr.orderId) {
+                  <tr>
+                    <td>
+                      <img
+                        [src]="
+                          ordr.receiptImageUrl
+                            ? serverUrl + '/images/' + ordr.receiptImageUrl
+                            : 'images/noImage.png'
+                        "
+                        style="width: 100px; object-fit: cover"
+                      />
+                    </td>
+
+                    <td>
+                      <div>
+                        <strong>{{ ordr.customerName }}</strong>
+                      </div>
+                      <div class="text-muted small">Number:{{ ordr.mobileNo }}</div>
+                      <div class="text-muted small">
+                        Date:{{ ordr.orderDate | date: 'yyyy-MM-dd' }}
+                      </div>
+                    </td>
+
+                    <td>
+                      @if (ordr.restaurantTable) {
+                        <span>{{ ordr.restaurantTable.tableNumber }}</span>
+                      } @else {
+                        <span>Not Found</span>
+                      }
+                    </td>
+
+                    <td>
+                      <strong>${{ ordr.totalAmount }}</strong>
+                    </td>
+
+                    <td>
+                      <span
+                        class="badge"
+                        [class.bg-success]="ordr.isPaid"
+                        [class.bg-secondary]="!ordr.isPaid"
+                      >
+                        {{ ordr.isPaid ? 'Paid' : 'Unpaid' }}</span
+                      >
+                    </td>
+
+                    <td>
+                      @if (ordr.orderItems && ordr.orderItems.length > 0) {
+                        <ul class="list-unstyled mb-0 small">
+                          @for (item of ordr.orderItems; track $index) {
+                            <li>
+                              <strong>{{ item.menuItem?.itemName }}</strong>
+                              - Qty: {{ item.quantity }}
+                            </li>
+                          }
+                        </ul>
+                      } @else {
+                        <small>No Items</small>
+                      }
+                    </td>
+
+                    <td>
+                      <button
+                        type="button"
+                        class="btn btn-outline-primary btn-sm"
+                        (click)="editOrder(ordr)"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-outline-danger btn-sm"
+                        (click)="deleteOrder(ordr.orderId!)"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
